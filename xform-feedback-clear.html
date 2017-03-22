@@ -74,11 +74,6 @@
         canvas.height = window.innerHeight;
         
         var gl = canvas.getContext("webgl2");
-        if (!gl) {
-            console.error("WebGL 2 not available");
-            document.body.innerHTML = "This example requires WebGL 2 which is unavailable on this system."
-        }
-
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
         ///////////////////////////
@@ -92,27 +87,15 @@
         gl.shaderSource(updateVertexShader, updateVsSource);
         gl.compileShader(updateVertexShader);
 
-        if (!gl.getShaderParameter(updateVertexShader, gl.COMPILE_STATUS)) {
-            console.error(gl.getShaderInfoLog(updateVertexShader));
-        }
-
         var updateFragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(updateFragmentShader, updateFsSource);
         gl.compileShader(updateFragmentShader);
-
-        if (!gl.getShaderParameter(updateFragmentShader, gl.COMPILE_STATUS)) {
-            console.error(gl.getShaderInfoLog(updateFragmentShader));
-        }
 
         var updateProgram = gl.createProgram();
         gl.attachShader(updateProgram, updateVertexShader);
         gl.attachShader(updateProgram, updateFragmentShader);
         gl.transformFeedbackVaryings(updateProgram, ["vPosition"], gl.SEPARATE_ATTRIBS);
         gl.linkProgram(updateProgram);
-
-        if (!gl.getProgramParameter(updateProgram, gl.LINK_STATUS)) {
-            console.error(gl.getProgramInfoLog(updateProgram));
-        }
 
         ///////////////////////////
         // MAIN PROGRAM
@@ -125,26 +108,14 @@
         gl.shaderSource(mainVertexShader, mainVsSource);
         gl.compileShader(mainVertexShader);
 
-        if (!gl.getShaderParameter(mainVertexShader, gl.COMPILE_STATUS)) {
-            console.error(gl.getShaderInfoLog(mainVertexShader));
-        }
-
         var mainFragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(mainFragmentShader, mainFsSource);
         gl.compileShader(mainFragmentShader);
-
-        if (!gl.getShaderParameter(mainFragmentShader, gl.COMPILE_STATUS)) {
-            console.error(gl.getShaderInfoLog(mainFragmentShader));
-        }
 
         var mainProgram = gl.createProgram();
         gl.attachShader(mainProgram, mainVertexShader);
         gl.attachShader(mainProgram, mainFragmentShader);
         gl.linkProgram(mainProgram);
-
-        if (!gl.getProgramParameter(mainProgram, gl.LINK_STATUS)) {
-            console.error(gl.getProgramInfoLog(mainProgram));
-        }
 
         //////////////////////////
         // SET UP GEOMETRY
@@ -184,7 +155,8 @@
 
         function draw() {
             // NOTE(Tarek): Putting the clear after the transform feedback
-            // pass seems to cause it to be ignored on OSX 10.12/Intel Iris
+            // pass seems to cause it to be ignored on OSX 10.12/Intel Iris.
+            // It works if you move it here.
             // gl.clear(gl.COLOR_BUFFER_BIT);
 
             //////////////////////////////
