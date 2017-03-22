@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2017 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<html>
+<head>
+    <title>WebGL 2 Bug: Clear/Transform Feedback</title>
+</head>
+<body>
+    <canvas id="gl-canvas"></canvas>
+    <script id="update-vs" type="x-shader/vs">
+        #version 300 es
+
+        layout(std140) uniform;
+
+        layout(location=0) in vec3 aPosition;
+
+        out vec3 vPosition;
+        void main() {
+            vPosition = aPosition + vec3(0.001, 0.0, 0.0);
+        }
+    </script>
+    <script id="update-fs" type="x-fragment-shader">
+        #version 300 es
+        precision highp float;
+
+        void main() {
+            
+        }
+    </script>
+    <script id="main-vs" type="x-vertex-shader">
+        #version 300 es
+
+        layout(location=0) in vec4 position;
+        
+
+        void main() {
+            gl_PointSize = 5.0;
+            gl_Position = position;
+        }
+    </script>
+    <script id="main-fs" type="x-fragment-shader">
+        #version 300 es
+        precision highp float;
+
+
+        out vec4 fragColor;
+        void main() {
+            fragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        }
+    </script>
+    <script type="text/javascript">
+        var canvas = document.getElementById("gl-canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        var gl = canvas.getContext("webgl2");
+        if (!gl) {
+            console.error("WebGL 2 not available");
+            document.body.innerHTML = "This example requires WebGL 2 which is unavailable on this system."
+        }
+
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+        ///////////////////////////
+        // PARTICLE UPDATE PROGRAM
+        ///////////////////////////
+
+        var updateVsSource = document.getElementById("update-vs").text.trim();
+        var updateFsSource = document.getElementById("update-fs").text.trim();
+        
+        var updateVertexShader = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(updateVertexShader, updateVsSource);
+        gl.compileShader(updateVertexShader);
+
+        if (!gl.getShaderParameter(updateVertexShader, gl.COMPILE_STATUS)) {
+            console.error(gl.getShaderInfoLog(updateVertexShader));
+        }
+
+        var updateFragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(updateFragmentShader, updateFsSource);
+        gl.compileShader(updateFragmentShader);
+
+        if (!gl.getShaderParameter(updateFragmentShader, gl.COMPILE_STATUS)) {
+            console.error(gl.getShaderInfoLog(updateFragmentShader));
+        }
+
+        var updateProgram = gl.createProgram();
+        gl.attachShader(updateProgram, updateVertexShader);
+        gl.attachShader(updateProgram, updateFragmentShader);
+        gl.transformFeedbackVaryings(updateProgram, ["vPosition"], gl.SEPARATE_ATTRIBS);
+        gl.linkProgram(updateProgram);
+
+        if (!gl.getProgramParameter(updateProgram, gl.LINK_STATUS)) {
+            console.error(gl.getProgramInfoLog(updateProgram));
+        }
+
+        ///////////////////////////
+        // MAIN PROGRAM
+        ///////////////////////////
+
+        var mainVsSource = document.getElementById("main-vs").text.trim();
+        var mainFsSource = document.getElementById("main-fs").text.trim();
+        
+        var mainVertexShader = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(mainVertexShader, mainVsSource);
+        gl.compileShader(mainVertexShader);
+
+        if (!gl.getShaderParameter(mainVertexShader, gl.COMPILE_STATUS)) {
+            console.error(gl.getShaderInfoLog(mainVertexShader));
+        }
+
+        var mainFragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(mainFragmentShader, mainFsSource);
+        gl.compileShader(mainFragmentShader);
+
+        if (!gl.getShaderParameter(mainFragmentShader, gl.COMPILE_STATUS)) {
+            console.error(gl.getShaderInfoLog(mainFragmentShader));
+        }
+
+        var mainProgram = gl.createProgram();
+        gl.attachShader(mainProgram, mainVertexShader);
+        gl.attachShader(mainProgram, mainFragmentShader);
+        gl.linkProgram(mainProgram);
+
+        if (!gl.getProgramParameter(mainProgram, gl.LINK_STATUS)) {
+            console.error(gl.getProgramInfoLog(mainProgram));
+        }
+
+        //////////////////////////
+        // SET UP GEOMETRY
+        //////////////////////////
+
+        var positionData = new Float32Array(3);
+
+
+        var vertexArrayA = gl.createVertexArray();
+        gl.bindVertexArray(vertexArrayA);
+
+        var positionBufferA = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBufferA);
+        gl.bufferData(gl.ARRAY_BUFFER, positionData, gl.STREAM_COPY);
+        gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(0);
+
+        var vertexArrayB = gl.createVertexArray();
+        gl.bindVertexArray(vertexArrayB);
+
+        var positionBufferB = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBufferB);
+        gl.bufferData(gl.ARRAY_BUFFER, positionData, gl.STREAM_COPY);
+        gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindVertexArray(null);
+
+        var readVertexArray = vertexArrayA;
+        var readPositionBuffer = positionBufferA;
+
+        var writeVertexArray = vertexArrayB;
+        var writePositionBuffer = positionBufferB;
+        
+        var transformFeedback = gl.createTransformFeedback();
+
+        function draw() {
+            // NOTE(Tarek): Putting the clear after the transform feedback
+            // pass seems to cause it to be ignored on OSX 10.12/Intel Iris
+            // gl.clear(gl.COLOR_BUFFER_BIT);
+
+            //////////////////////////////
+            // TRANSFORM FEEDBACK PASS
+            //////////////////////////////
+
+            gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
+            gl.useProgram(updateProgram);
+            gl.bindVertexArray(readVertexArray);
+
+            gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, writePositionBuffer);
+
+            gl.enable(gl.RASTERIZER_DISCARD);
+            gl.beginTransformFeedback(gl.POINTS);
+            gl.drawArrays(gl.POINTS, 0, 1);
+            gl.endTransformFeedback();
+            gl.disable(gl.RASTERIZER_DISCARD);
+            gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+            gl.bindVertexArray(null);
+
+            //////////////
+            // DRAW PASS
+            //////////////
+
+            gl.useProgram(mainProgram);
+            gl.bindVertexArray(writeVertexArray);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.drawArrays(gl.POINTS, 0, 1);
+            gl.bindVertexArray(null);
+
+            //////////////////
+            // SWAP BUFFERS
+            //////////////////
+
+            if (readVertexArray === vertexArrayA) {
+                readVertexArray = vertexArrayB;
+                readPositionBuffer = positionBufferB;
+                writeVertexArray = vertexArrayA;
+                writePositionBuffer = positionBufferA;
+            } else {
+                readVertexArray = vertexArrayA;
+                readPositionBuffer = positionBufferA;
+                writeVertexArray = vertexArrayB;
+                writePositionBuffer = positionBufferB;
+            }
+
+            requestAnimationFrame(draw);
+        }
+
+        requestAnimationFrame(draw);
+    </script>
+</body>
+</html>
