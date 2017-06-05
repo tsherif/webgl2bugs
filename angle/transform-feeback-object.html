@@ -117,6 +117,7 @@
         // Transform feedback objects to capture output
         // ANGLE BUG: STATE OF TRANSFORM_FEEDBACK_BUFFER SHOULD BE
         // CAPTURED IN TRANSFORM FEEDBACK OBJECT WHICH DOESN'T HAPPEN!
+        // (OPENGL ES 3.0.5 SPEC: SECTION 2.5.1 AND TABLE 6.24)
         var transformFeedbackA = gl.createTransformFeedback();
         gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedbackA);
         gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, positionsA);
@@ -136,8 +137,9 @@
             gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, currentFeedback);
 
             // ANGLE BUG: STATE OF TRANSFORM_FEEDBACK_BUFFER SHOULD BE RESTORED
-            // WHEN TRANSFORM FEEDBACK OBJECT IS BOUND. THIS DOESN'T HAPPEN SO
-            // YOU HAVE TO REBIND THE BUFFERS ON EVERY FRAME.
+            // WHEN TRANSFORM FEEDBACK OBJECT IS BOUND. 
+            // (OPENGL ES 3.0.5 SPEC: SECTION 2.5.1 AND TABLE 6.24)
+            // THIS DOESN'T HAPPEN SO YOU HAVE TO REBIND THE BUFFERS ON EVERY FRAME.
             // UNCOMMENTING THE FOLLOWING LINES GETS IT TO WORK.
             // if (currentFeedback === transformFeedbackA) {
             //     gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, positionsA);
