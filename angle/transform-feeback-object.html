@@ -31,19 +31,12 @@
     <script type="shader/vs" id="vs">
         #version 300 es
 
-        #define SIN2 0.03489949
-        #define COS2 0.99939082
-        
         layout(location=0) in vec2 position;
         
         out vec2 vPosition;
         void main() {
-            mat2 rotation = mat2(
-                COS2, SIN2,
-                -SIN2, COS2
-            );
-
-            vPosition = rotation * position;
+            vPosition = position + vec2(0.005, 0.0);
+            gl_PointSize = 16.0;
             gl_Position = vec4(vPosition, 0.0, 1.0);
         }
     </script>
@@ -56,7 +49,6 @@
             fragColor = vec4(1.0, 0.0, 0.0, 1.0);
         }
     </script>
-    
     <script type="text/javascript">
         var canvas = document.getElementById("gl-canvas");
 
@@ -88,25 +80,21 @@
         // Input and output vertex position buffers
         var positionsA = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, positionsA);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-            -0.3, -0.3,
-             0.3, -0.3,
-             0.0, 0.3 
-        ]), gl.STREAM_COPY);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-0.9, -0.0]), gl.STREAM_COPY);
 
         var positionsB = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, positionsB);
-        gl.bufferData(gl.ARRAY_BUFFER, 24, gl.STREAM_COPY);
+        gl.bufferData(gl.ARRAY_BUFFER, 8, gl.STREAM_COPY);
 
         // Vertex arrays for input
-        var triangleArrayA = gl.createVertexArray();
-        gl.bindVertexArray(triangleArrayA);
+        var vertexArrayA = gl.createVertexArray();
+        gl.bindVertexArray(vertexArrayA);
         gl.bindBuffer(gl.ARRAY_BUFFER, positionsA);
         gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(0);
 
-        var triangleArrayB = gl.createVertexArray();
-        gl.bindVertexArray(triangleArrayB);
+        var vertexArrayB = gl.createVertexArray();
+        gl.bindVertexArray(vertexArrayB);
         gl.bindBuffer(gl.ARRAY_BUFFER, positionsB);
         gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(0);
@@ -130,34 +118,34 @@
         gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
 
 
-        var currentArray = triangleArrayA;
-        var currentFeedback = transformFeedbackB;
+        var currentVertexArray = vertexArrayA;
+        var currentTransformFeedback = transformFeedbackB;
         function draw() {
-            gl.bindVertexArray(currentArray);
-            gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, currentFeedback);
+            gl.bindVertexArray(currentVertexArray);
+            gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, currentTransformFeedback);
 
             // ANGLE BUG: STATE OF TRANSFORM_FEEDBACK_BUFFER SHOULD BE RESTORED
             // WHEN TRANSFORM FEEDBACK OBJECT IS BOUND. 
             // (OPENGL ES 3.0.5 SPEC: SECTION 2.5.1 AND TABLE 6.24)
             // THIS DOESN'T HAPPEN SO YOU HAVE TO REBIND THE BUFFERS ON EVERY FRAME.
             // UNCOMMENTING THE FOLLOWING LINES GETS IT TO WORK.
-            // if (currentFeedback === transformFeedbackA) {
+            // if (currentTransformFeedback === transformFeedbackA) {
             //     gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, positionsA);
             // } else {
             //     gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, positionsB);
             // }
 
-            gl.beginTransformFeedback(gl.TRIANGLES);
+            gl.beginTransformFeedback(gl.POINTS);
             gl.clear(gl.COLOR_BUFFER_BIT);
-            gl.drawArrays(gl.TRIANGLES, 0, 3);
+            gl.drawArrays(gl.POINTS, 0, 1);
             gl.endTransformFeedback();
 
-            if (currentArray === triangleArrayA) {
-                currentArray = triangleArrayB;
-                currentFeedback = transformFeedbackA;
+            if (currentVertexArray === vertexArrayA) {
+                currentVertexArray = vertexArrayB;
+                currentTransformFeedback = transformFeedbackA;
             } else {
-                currentArray = triangleArrayA;
-                currentFeedback = transformFeedbackB;
+                currentVertexArray = vertexArrayA;
+                currentTransformFeedback = transformFeedbackB;
             }
 
             requestAnimationFrame(draw);
