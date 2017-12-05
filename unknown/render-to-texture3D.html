@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2017 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<html>
+<head>
+    <style>
+        html {
+            overflow: hidden;
+        }
+
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gl-canvas"></canvas>
+    <script type="x-shader/vs" id="vertex-draw">
+        #version 300 es
+        
+        layout(location=0) in vec4 position;
+        layout(location=1) in vec2 uv;
+        
+        out vec2 vUV;
+        void main() {
+            vUV = uv;
+            gl_Position = position;
+        }
+    </script>
+    <script type="x-shader/vf" id="fragment-cubemap">
+        #version 300 es
+        precision highp float;
+        precision lowp sampler3D;
+
+        in vec2 vUV;
+
+        uniform sampler3D tex;
+
+        out vec4 fragColor;
+        void main() {
+            fragColor = texture(tex, vec3(vUV, 0.0));
+        }
+    </script>
+    <script type="x-shader/vf" id="fragment-draw">
+        #version 300 es
+        precision highp float;
+
+        in vec2 vUV;
+
+        uniform sampler2D tex;
+
+        out vec4 fragColor;
+        void main() {
+            fragColor = texture(tex, vUV);
+        }
+    </script>
+    <script type="text/javascript">
+        var canvas = document.getElementById("gl-canvas");
+
+        if (!canvas.getContext("webgl2")) {
+            console.error("WebGL 2 not available");
+            document.body.innerHTML = "This example requires WebGL 2 which is unavailable on this system."
+        }
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        var gl = canvas.getContext("webgl2");
+
+        var framebufferWidth = 1024;
+        var framebufferHeight = 1024;
+
+        // PROGRAM
+        var vsSource = document.getElementById("vertex-draw").text.trim();
+        var cubeFsSource = document.getElementById("fragment-cubemap").text.trim();
+        var fsSource = document.getElementById("fragment-draw").text.trim();
+        var vShader = gl.createShader(gl.VERTEX_SHADER);
+        var cubeFShader = gl.createShader(gl.FRAGMENT_SHADER);
+        var fShader = gl.createShader(gl.FRAGMENT_SHADER);
+
+        gl.shaderSource(vShader, vsSource);
+        gl.compileShader(vShader);
+
+        if (!gl.getShaderParameter(vShader, gl.COMPILE_STATUS)) {
+            let i, lines;
+
+            console.error(gl.getShaderInfoLog(vShader));
+            lines = vsSource.split("\n");
+            for (i = 0; i < lines.length; ++i) {
+                console.error(`${i + 1}: ${lines[i]}`);
+            }
+        }
+
+        gl.shaderSource(cubeFShader, cubeFsSource);
+        gl.compileShader(cubeFShader);
+
+        if (!gl.getShaderParameter(cubeFShader, gl.COMPILE_STATUS)) {
+            let i, lines;
+
+            console.error(gl.getShaderInfoLog(cubeFShader));
+            lines = cubeFsSource.split("\n");
+            for (i = 0; i < lines.length; ++i) {
+                console.error(`${i + 1}: ${lines[i]}`);
+            }
+        }
+
+        gl.shaderSource(fShader, fsSource);
+        gl.compileShader(fShader);
+
+        if (!gl.getShaderParameter(fShader, gl.COMPILE_STATUS)) {
+            let i, lines;
+
+            console.error(gl.getShaderInfoLog(fShader));
+            lines = fsSource.split("\n");
+            for (i = 0; i < lines.length; ++i) {
+                console.error(`${i + 1}: ${lines[i]}`);
+            }
+        }
+
+        var cubeProgram = gl.createProgram();
+        gl.attachShader(cubeProgram, vShader);
+        gl.attachShader(cubeProgram, cubeFShader);
+
+        gl.linkProgram(cubeProgram);
+        gl.useProgram(cubeProgram);
+
+        var cubeTexLocation = gl.getUniformLocation(cubeProgram, "tex");
+        gl.uniform1i(cubeTexLocation, 1);
+
+        var program = gl.createProgram();
+        gl.attachShader(program, vShader);
+        gl.attachShader(program, fShader);
+
+        gl.linkProgram(program);
+        gl.useProgram(program);
+
+        var texLocation = gl.getUniformLocation(program, "tex");
+        gl.uniform1i(texLocation, 0);
+
+        // FRAMEBUFFER
+        var framebuffer = gl.createFramebuffer();
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        gl.activeTexture(gl.TEXTURE0);
+
+        var colorTarget = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_3D, colorTarget);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texStorage3D(gl.TEXTURE_3D, 1, gl.RGBA8, framebufferWidth, framebufferHeight, 8);
+        gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, colorTarget, 0, 0);
+
+        var depthTarget = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, depthTarget);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texStorage2D(gl.TEXTURE_2D, 1, gl.DEPTH_COMPONENT16, framebufferWidth, framebufferHeight);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTarget, 0);
+
+        // GEOMETRY
+        var quadArray = gl.createVertexArray();
+        gl.bindVertexArray(quadArray);
+
+        var positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            -0.5, 0.5,
+            -0.5, -0.5,
+            0.5, -0.5,
+            -0.5, 0.5,
+            0.5, -0.5,
+            0.5, 0.5
+        ]), gl.STATIC_DRAW);
+        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(0);
+
+        var uvBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            0, 1,
+            0, 0,
+            1, 0,
+            0, 1,
+            1, 0,
+            1, 1
+        ]), gl.STATIC_DRAW);
+        gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(1);
+
+        var image = new Image();
+
+        image.onload = function() {
+            var texture = gl.createTexture();
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+            
+            var levels = levels = Math.floor(Math.log2(Math.max(this.width, this.height))) + 1;
+            gl.texStorage2D(gl.TEXTURE_2D, levels, gl.RGBA8, image.width, image.height);
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, image.width, image.height, gl.RGBA, gl.UNSIGNED_BYTE, image);
+            gl.generateMipmap(gl.TEXTURE_2D);
+
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_3D, colorTarget);
+
+            gl.viewport(0, 0, framebufferWidth, framebufferHeight);
+            gl.useProgram(program);
+            gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, framebuffer);
+            gl.clearColor(0.4, 0.4, 0.4, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);        
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+            gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+            gl.useProgram(cubeProgram);
+            gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+            gl.clearColor(0.0, 0.0, 0.0, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+        }
+
+        image.src = "../img/khronos_webgl.png";
+    </script>
+</body>
+</html>
