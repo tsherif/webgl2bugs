@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<!--
+  This is free and unencumbered software released into the public domain.
+
+  Anyone is free to copy, modify, publish, use, compile, sell, or
+  distribute this software, either in source code form or as a compiled
+  binary, for any purpose, commercial or non-commercial, and by any
+  means.
+
+  In jurisdictions that recognize copyright laws, the author or authors
+  of this software dedicate any and all copyright interest in the
+  software to the public domain. We make this dedication for the benefit
+  of the public at large and to the detriment of our heirs and
+  successors. We intend this dedication to be an overt act of
+  relinquishment in perpetuity of all present and future rights to this
+  software under copyright law.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+  OTHER DEALINGS IN THE SOFTWARE.
+
+  For more information, please refer to <http://unlicense.org>
+-->
+<html>
+<body>
+    <canvas id="gl-canvas"></canvas>
+    <script type="shader/vs" id="vs">
+        #version 300 es
+
+        layout(location=0) in vec2 position;
+        
+        out vec2 vPosition;
+        void main() {
+            vPosition = position + vec2(0.005, 0.0);
+            gl_PointSize = 16.0;
+            gl_Position = vec4(vPosition, 0.0, 1.0);
+        }
+    </script>
+    <script type="shader/fs" id="fs">
+        #version 300 es
+        precision highp float;
+        
+        out vec4 fragColor;
+        void main() {
+            fragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        }
+    </script>
+    <script type="text/javascript">
+        var canvas = document.getElementById("gl-canvas");
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        var gl = canvas.getContext("webgl2");
+        gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+        // Transform feedback program
+        var vsSource = document.getElementById("vs").text.trim();
+        var vShader = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(vShader, vsSource);
+        gl.compileShader(vShader);
+
+        var fsSource = document.getElementById("fs").text.trim();
+        var fShader = gl.createShader(gl.FRAGMENT_SHADER, fsSource);
+        gl.shaderSource(fShader, fsSource);
+        gl.compileShader(fShader);
+
+        var program = gl.createProgram();
+        gl.attachShader(program, vShader);
+        gl.attachShader(program, fShader);
+        gl.transformFeedbackVaryings(program, ["vPosition"], gl.SEPARATE_ATTRIBS);
+        gl.linkProgram(program);
+        gl.useProgram(program);
+
+        // Input and output vertex position buffers
+        var positionsA = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionsA);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-0.9, -0.0]), gl.STREAM_COPY);
+
+        var positionsB = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionsB);
+        gl.bufferData(gl.ARRAY_BUFFER, 8, gl.STREAM_COPY);
+
+        // Vertex arrays for input
+        var vertexArrayA = gl.createVertexArray();
+        gl.bindVertexArray(vertexArrayA);
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionsA);
+        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(0);
+
+        var vertexArrayB = gl.createVertexArray();
+        gl.bindVertexArray(vertexArrayB);
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionsB);
+        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(0);
+
+        gl.bindVertexArray(null);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+        var transformFeedbackA = gl.createTransformFeedback();
+        gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedbackA);
+        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, positionsA);
+
+        var transformFeedbackB = gl.createTransformFeedback();
+        gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedbackB);
+        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, positionsB);
+
+        gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+
+        // FIREFOX BUG: BUFFER IS BOUND TO TRANSFORM_FEEDBACK_BUFFER
+        // ON DEFAULT TRANSFORM FEEDBACK OBJECT UNLESS EXPLICITLY UNBOUND.
+        // UNCOMMENT FOLLOWING LINE TO GET IT TO WORK:
+        // gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+
+        var currentVertexArray = vertexArrayA;
+        var currentTransformFeedback = transformFeedbackB;
+        function draw() {
+            gl.bindVertexArray(currentVertexArray);
+            gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, currentTransformFeedback);
+
+            gl.beginTransformFeedback(gl.POINTS);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.drawArrays(gl.POINTS, 0, 1);
+            gl.endTransformFeedback();
+
+            if (currentVertexArray === vertexArrayA) {
+                currentVertexArray = vertexArrayB;
+                currentTransformFeedback = transformFeedbackA;
+            } else {
+                currentVertexArray = vertexArrayA;
+                currentTransformFeedback = transformFeedbackB;
+            }
+
+            requestAnimationFrame(draw);
+        }
+
+        requestAnimationFrame(draw);
+
+    </script>
+</body>
+</html>
